@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keycloak-chart.fullname" . }}-keycloak
+  labels:
+    app: keycloak
+  {{- include "keycloak-chart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.keycloak.replicas }}
+  selector:
+    matchLabels:
+      app: keycloak
+    {{- include "keycloak-chart.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: keycloak
+      {{- include "keycloak-chart.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - args: {{- toYaml .Values.keycloak.keycloak.args | nindent 8 }}
+        env:
+        - name: KEYCLOAK_ADMIN
+          value: {{ quote .Values.keycloak.keycloak.env.keycloakAdmin }}
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ quote .Values.keycloak.keycloak.env.keycloakAdminPassword }}
+        - name: KC_PROXY
+          value: {{ quote .Values.keycloak.keycloak.env.kcProxy }}
+        - name: KC_HEALTH_ENABLED
+          value: {{ quote .Values.keycloak.keycloak.env.kcHealthEnabled }}
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ quote .Values.kubernetesClusterDomain }}
+        image: {{ .Values.keycloak.keycloak.image.repository }}:{{ .Values.keycloak.keycloak.image.tag
+          | default .Chart.AppVersion }}
+        name: keycloak
+        ports:
+        - containerPort: 8080
+          name: http
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 9000
+        resources: {}
