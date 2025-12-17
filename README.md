@@ -10,7 +10,7 @@ keycloak-misc/
 │   ├── keycloak-chart/     # Helm chart for Keycloak
 │   ├── keycloak-values.yaml
 │   └── keycloak_start_dev.yaml
-├── vm/                     # Bare-metal VM deployments
+├── bm-vm/                  # Bare-metal VM deployments
 │   ├── setup-keycloak-dev.sh    # Automated setup script
 │   ├── deploy-service.sh         # Service deployment script
 │   ├── keycloak.service          # Systemd service file
@@ -38,17 +38,17 @@ kubectl apply -f k8s/keycloak_start_dev.yaml
 
 ### Bare-Metal VM Deployment
 
-For complete setup on a Linux VM, see the [VM setup guide](vm/Readme.md).
+For complete setup on a Linux VM, see the [VM setup guide](bm-vm/Readme.md).
 
 **Automated setup:**
 ```bash
-cd vm
+cd bm-vm
 sudo ./setup-keycloak-dev.sh
 ```
 
 **Manual service deployment:**
 ```bash
-cd vm
+cd bm-vm
 sudo ./deploy-service.sh
 ```
 
@@ -60,7 +60,7 @@ sudo ./deploy-service.sh
 - Development mode configuration
 - Health checks and readiness probes
 
-### Bare-Metal VM (`vm/`)
+### Bare-Metal VM (`bm-vm/`)
 - Complete automated setup script
 - HTTPS-only configuration (port 443)
 - Systemd service with security hardening
@@ -84,7 +84,7 @@ sudo ./deploy-service.sh
 
 ## 📖 Documentation
 
-- [VM Setup Guide](vm/Readme.md) - Detailed bare-metal setup instructions
+- [VM Setup Guide](bm-vm/Readme.md) - Detailed bare-metal setup instructions
 - [Kubernetes Manifests](k8s/) - K8s deployment files
 
 ## 🔐 Security Notes

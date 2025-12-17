@@ -132,7 +132,7 @@ cap_net_bind_service=ep
 **Service file location in this repo:**
 
 ```
-vm/keycloak.service
+bm-vm/keycloak.service
 ```
 
 **Installation location:**
@@ -152,7 +152,7 @@ sudo ./deploy-service.sh
 Or copy manually:
 
 ```bash
-sudo cp vm/keycloak.service /etc/systemd/system/keycloak.service
+sudo cp bm-vm/keycloak.service /etc/systemd/system/keycloak.service
 sudo chmod 644 /etc/systemd/system/keycloak.service
 ```
 
