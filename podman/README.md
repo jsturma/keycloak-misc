@@ -97,6 +97,8 @@ openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
 rm certs/cert-config.json certs/keycloak.csr
 ```
 
+**Important:** The `cert-config.json` template includes proper key usage extensions (`keyUsage` and `extendedKeyUsage`) to prevent `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors in browsers. If you encounter this error, regenerate your certificates using the updated template.
+
 Note: The PKCS12 keystore creation still requires openssl, but you can also use `keytool` (Java) if available:
 
 ```bash
@@ -214,6 +216,36 @@ Once the container is running:
 - Default admin credentials (if set via environment variables):
   - Username: `admin`
   - Password: `admin` (or your `KEYCLOAK_ADMIN_PASSWORD` value)
+
+## Troubleshooting
+
+### ERR_SSL_KEY_USAGE_INCOMPATIBLE
+
+If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycloak in your browser, it means your certificate is missing the required key usage extensions for SSL/TLS server authentication.
+
+**Solution:**
+1. Ensure you're using the updated `cert-config.json` template which includes:
+   - `keyUsage` with `digitalSignature` and `keyEncipherment`
+   - `extendedKeyUsage` with `serverAuth`
+2. Regenerate your certificates using the updated template:
+   ```bash
+   # Create certs directory if it doesn't exist
+   mkdir -p certs
+   
+   # Remove only the certificate files (not the directory)
+   rm -f certs/keycloak.* certs/cert-config.json
+   
+   # Copy the updated template
+   cp cert-config.json certs/cert-config.json
+   
+   # Generate new certificates
+   cfssl genkey -initca certs/cert-config.json | cfssljson -bare certs/keycloak
+   mv certs/keycloak-key.pem certs/keycloak.key
+   mv certs/keycloak.pem certs/keycloak.crt
+   openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
+     -out certs/keycloak.p12 -name keycloak -password pass:changeit
+   ```
+3. Restart your Keycloak container
 
 ## Notes
 

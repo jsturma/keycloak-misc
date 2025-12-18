@@ -19,13 +19,6 @@
       "OU": "IT Department",
       "CN": "localhost"
     }
-  ],
-  "keyUsage": {
-    "digitalSignature": true,
-    "keyEncipherment": true
-  },
-  "extendedKeyUsage": {
-    "serverAuth": true
-  }
+  ]
 }
 
