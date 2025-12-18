@@ -82,8 +82,9 @@ cp cert-config.json certs/cert-config.json
 # Edit certs/cert-config.json to customize for your environment if needed
 # (e.g., change CN, hosts, organization details)
 
-# Generate private key and certificate
-cfssl genkey -initca certs/cert-config.json | cfssljson -bare certs/keycloak
+# Generate self-signed certificate with proper extensions
+# Using gencert -initca ensures keyUsage and extendedKeyUsage are applied
+cfssl gencert -initca certs/cert-config.json | cfssljson -bare certs/keycloak
 
 # Rename files to match Keycloak expectations
 mv certs/keycloak-key.pem certs/keycloak.key
@@ -92,6 +93,9 @@ mv certs/keycloak.pem certs/keycloak.crt
 # Create a PKCS12 keystore (required by Keycloak)
 openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
   -out certs/keycloak.p12 -name keycloak -password pass:changeit
+
+# Verify the certificate has the correct extensions (optional)
+openssl x509 -in certs/keycloak.crt -text -noout | grep -A 5 "X509v3 extensions"
 
 # Clean up intermediate files (optional)
 rm certs/cert-config.json certs/keycloak.csr
@@ -238,8 +242,8 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
    # Copy the updated template
    cp cert-config.json certs/cert-config.json
    
-   # Generate new certificates
-   cfssl genkey -initca certs/cert-config.json | cfssljson -bare certs/keycloak
+   # Generate new certificates (using gencert -initca to ensure extensions are applied)
+   cfssl gencert -initca certs/cert-config.json | cfssljson -bare certs/keycloak
    mv certs/keycloak-key.pem certs/keycloak.key
    mv certs/keycloak.pem certs/keycloak.crt
    openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
