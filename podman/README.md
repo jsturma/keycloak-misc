@@ -28,6 +28,25 @@ docker build -t keycloak:latest -f DockerFile .
 
 Keycloak requires SSL/TLS certificates for HTTPS connections. Here are instructions for creating certificates:
 
+**Project Structure:**
+```
+podman/
+├── certs-template/          # Certificate configuration templates
+│   ├── ca-cert-config.json  # CA certificate template
+│   ├── cert-config.json     # Server certificate template
+│   └── ca-config.json       # CA signing configuration
+├── certs/                    # Generated certificates (created by scripts)
+│   └── ca/
+│       ├── ca.pem           # CA certificate
+│       ├── ca-key.pem       # CA private key
+│       └── servers/         # Server certificates
+│           ├── keycloak.crt
+│           ├── keycloak.key
+│           ├── keycloak-chain.crt
+│           └── keycloak.p12
+└── create-certs.sh          # Automated certificate creation script
+```
+
 ### Self-Signed Certificate with OpenSSL (Development)
 
 For development purposes, you can create a self-signed certificate using OpenSSL:
@@ -212,7 +231,16 @@ rm certs/ca/servers/cert-config.json certs/ca/ca-cert-config.json certs/ca/ca-co
 
 #### Creating Additional Server Certificates
 
-Once you have a CA in the `certs/ca/` directory, you can easily create additional server certificates by reusing the same CA:
+Once you have a CA in the `certs/ca/` directory, you can easily create additional server certificates by reusing the same CA.
+
+**Using the script (recommended):**
+
+```bash
+# Create a new server certificate with custom name
+./create-certs.sh --server my-server
+```
+
+**Manual method:**
 
 ```bash
 # Ensure CA exists
@@ -259,6 +287,18 @@ rm certs/ca/servers/new-server-config.json certs/ca/ca-config.json certs/ca/serv
 - The `certs-template/cert-config.json` template includes proper key usage extensions (`keyUsage` and `extendedKeyUsage`) to prevent `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors in browsers
 - The two-step process (CA + server certificate) is required because `cfssl gencert -initca` alone creates a CA certificate, not a server certificate with the correct extensions
 - If you encounter `ERR_SSL_KEY_USAGE_INCOMPATIBLE`, ensure you're using the complete process above (not just `-initca`)
+
+**Certificate Files Created:**
+
+For each server certificate, the following files are created in `certs/ca/servers/`:
+- `{server-name}.crt` - Server certificate
+- `{server-name}.key` - Private key
+- `{server-name}-chain.crt` - Full chain (server cert + CA cert)
+- `{server-name}.p12` - PKCS12 keystore (includes full chain)
+
+The CA files are stored in `certs/ca/`:
+- `ca.pem` - CA certificate
+- `ca-key.pem` - CA private key
 
 Note: The PKCS12 keystore creation still requires openssl, but you can also use `keytool` (Java) if available:
 
@@ -411,8 +451,9 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
    - `keyUsage` with `digitalSignature` and `keyEncipherment`
    - `extendedKeyUsage` with `serverAuth`
 2. Regenerate your certificates using the correct method:
+   - **Using the script (easiest):** `./create-certs.sh --force-ca` to regenerate CA, then `./create-certs.sh --server keycloak` to regenerate server certificate
    - **For OpenSSL:** Use the method above with the extensions configuration file
-   - **For CFSSL:** Use the two-step process (CA + server certificate) as shown below:
+   - **For CFSSL (manual):** Use the two-step process (CA + server certificate) as shown below:
    ```bash
    # Create certs directory structure if it doesn't exist
    mkdir -p certs/ca/servers
