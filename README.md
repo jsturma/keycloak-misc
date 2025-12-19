@@ -15,6 +15,11 @@ keycloak-misc/
 │   ├── deploy-service.sh         # Service deployment script
 │   ├── keycloak.service          # Systemd service file
 │   └── Readme.md                 # Detailed VM setup guide
+├── podman/                 # Podman/Docker container deployments
+│   ├── DockerFile              # Keycloak container image
+│   ├── create-certs.sh         # Certificate creation script
+│   ├── certs-template/         # Certificate configuration templates
+│   └── README.md               # Podman setup guide
 ├── LICENSE
 └── README.md
 ```
@@ -52,6 +57,28 @@ cd bm-vm
 sudo ./deploy-service.sh
 ```
 
+### Podman/Docker Container Deployment
+
+For containerized deployments using Podman or Docker, see the [Podman setup guide](podman/README.md).
+
+**Quick start:**
+```bash
+cd podman
+podman build -t keycloak:latest -f DockerFile .
+podman run -d --name keycloak -p 8443:8443 keycloak:latest
+```
+
+**With certificates:**
+```bash
+cd podman
+./create-certs.sh --all
+podman run -d --name keycloak -p 8443:8443 \
+  -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
+  -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
+  -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
+  keycloak:latest
+```
+
 ## 📋 Features
 
 ### Kubernetes (`k8s/`)
@@ -68,6 +95,14 @@ sudo ./deploy-service.sh
 - TLS certificate management
 - Port 443 binding capabilities
 
+### Podman/Docker (`podman/`)
+- Containerized Keycloak deployment
+- Rootless Podman compatibility
+- Automated certificate creation (CFSSL/OpenSSL)
+- Development and production modes
+- Custom themes and providers support
+- HTTPS-only configuration (port 8443)
+
 ## 🔧 Requirements
 
 ### Kubernetes
@@ -82,9 +117,15 @@ sudo ./deploy-service.sh
 - `keycloak` user created
 - TLS certificates (for HTTPS)
 
+### Podman/Docker
+- Podman or Docker installed
+- CFSSL or OpenSSL (for certificate generation)
+- TLS certificates (optional, can be generated)
+
 ## 📖 Documentation
 
 - [VM Setup Guide](bm-vm/Readme.md) - Detailed bare-metal setup instructions
+- [Podman Setup Guide](podman/README.md) - Container deployment with Podman/Docker
 - [Kubernetes Manifests](k8s/) - K8s deployment files
 
 ## 🔐 Security Notes
