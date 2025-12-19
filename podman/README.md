@@ -115,6 +115,48 @@ brew install cfssl
 
 The CA can be reused to sign multiple server certificates, so it's only created once and kept in the `certs/ca/` directory.
 
+#### Automated Certificate Creation Script
+
+For convenience, a script is provided to automate certificate creation:
+
+```bash
+# Make the script executable (first time only)
+chmod +x create-certs.sh
+
+# Create CA and default keycloak server certificate
+./create-certs.sh --all
+
+# Create CA only
+./create-certs.sh --create-ca
+
+# Create a server certificate (default: keycloak)
+./create-certs.sh --server keycloak
+
+# Create a server certificate with custom name
+./create-certs.sh --server my-server
+
+# Regenerate CA (forces recreation)
+./create-certs.sh --force-ca
+
+# Verify existing certificates
+./create-certs.sh --verify
+
+# Show help
+./create-certs.sh --help
+```
+
+The script automatically:
+- Checks for required dependencies (cfssl, cfssljson, openssl)
+- Creates CA if it doesn't exist
+- Creates server certificates with full chain
+- Generates PKCS12 keystores
+- Verifies certificate extensions
+- Cleans up intermediate files
+
+#### Manual Certificate Creation with CFSSL
+
+If you prefer to create certificates manually, follow these steps:
+
 ```bash
 # Create directory structure for certificates
 mkdir -p certs/ca/servers
