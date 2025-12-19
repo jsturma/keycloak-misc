@@ -32,15 +32,17 @@ Keycloak requires SSL/TLS certificates for HTTPS connections. Here are instructi
 
 For development purposes, you can create a self-signed certificate using OpenSSL:
 
+**Note:** This method creates a self-signed certificate (no CA). For consistency with the CFSSL approach, certificates are stored in `certs/ca/servers/` even though no CA is used.
+
 ```bash
-# Create a directory for certificates
-mkdir -p certs
+# Create directory structure for certificates
+mkdir -p certs/ca/servers
 
 # Generate a private key
-openssl genrsa -out certs/keycloak.key 2048
+openssl genrsa -out certs/ca/servers/keycloak.key 2048
 
 # Create a certificate configuration file with proper extensions
-cat > certs/cert-extensions.conf <<EOF
+cat > certs/ca/servers/cert-extensions.conf <<EOF
 [req]
 distinguished_name = req_distinguished_name
 req_extensions = v3_req
@@ -62,23 +64,23 @@ IP.1 = 127.0.0.1
 EOF
 
 # Generate a certificate signing request
-openssl req -new -key certs/keycloak.key -out certs/keycloak.csr \
-  -config certs/cert-extensions.conf
+openssl req -new -key certs/ca/servers/keycloak.key -out certs/ca/servers/keycloak.csr \
+  -config certs/ca/servers/cert-extensions.conf
 
 # Generate a self-signed certificate with extensions (valid for 365 days)
-openssl x509 -req -days 365 -in certs/keycloak.csr \
-  -signkey certs/keycloak.key -out certs/keycloak.crt \
-  -extensions v3_req -extfile certs/cert-extensions.conf
+openssl x509 -req -days 365 -in certs/ca/servers/keycloak.csr \
+  -signkey certs/ca/servers/keycloak.key -out certs/ca/servers/keycloak.crt \
+  -extensions v3_req -extfile certs/ca/servers/cert-extensions.conf
 
 # Create a PKCS12 keystore (required by Keycloak)
-openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
-  -out certs/keycloak.p12 -name keycloak -password pass:changeit
+openssl pkcs12 -export -in certs/ca/servers/keycloak.crt -inkey certs/ca/servers/keycloak.key \
+  -out certs/ca/servers/keycloak.p12 -name keycloak -password pass:changeit
 
 # Verify the certificate has the correct extensions (optional)
-openssl x509 -in certs/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
+openssl x509 -in certs/ca/servers/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
 
 # Clean up intermediate files (optional)
-rm certs/keycloak.csr certs/cert-extensions.conf
+rm certs/ca/servers/keycloak.csr certs/ca/servers/cert-extensions.conf
 ```
 
 **Note:** The extensions file ensures the certificate has proper key usage (`digitalSignature`, `keyEncipherment`) and extended key usage (`serverAuth`) to prevent `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors in browsers.
@@ -102,55 +104,126 @@ brew install cfssl
 
 **Important:** CFSSL requires a two-step process: first create a CA (Certificate Authority), then sign a server certificate with that CA. Using `-initca` alone creates a CA certificate, not a server certificate, which will cause `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors.
 
+**Two-Config Approach:** We use separate configuration files stored in `certs-template/`:
+- `certs-template/ca-cert-config.json` - for the CA certificate (reusable, kept for future server certificates)
+- `certs-template/cert-config.json` - for server certificates (can be customized per server)
+- `certs-template/ca-config.json` - CA signing configuration
+
+**Directory Structure:**
+- CA files are stored in `./certs/ca/`
+- Server certificate files are stored in `./certs/ca/servers/`
+
+The CA can be reused to sign multiple server certificates, so it's only created once and kept in the `certs/ca/` directory.
+
 ```bash
-# Create a directory for certificates
-mkdir -p certs
+# Create directory structure for certificates
+mkdir -p certs/ca/servers
 
-# Copy the certificate configuration template
-cp cert-config.json certs/cert-config.json
+# Step 1: Create a CA (Certificate Authority) - only if it doesn't exist
+if [ ! -f certs/ca/ca.pem ]; then
+  echo "Creating new CA..."
+  cp certs-template/ca-cert-config.json certs/ca/ca-cert-config.json
+  cfssl gencert -initca certs/ca/ca-cert-config.json | cfssljson -bare certs/ca/ca
+  echo "CA created and saved in certs/ca/ directory for future reuse"
+else
+  echo "Using existing CA from certs/ca/ directory"
+fi
 
-# Edit certs/cert-config.json to customize for your environment if needed
+# Step 2: Copy the server certificate configuration template
+cp certs-template/cert-config.json certs/ca/servers/cert-config.json
+
+# Edit certs/ca/servers/cert-config.json to customize for your environment if needed
 # (e.g., change CN, hosts, organization details)
 
-# Step 1: Create a CA (Certificate Authority)
-cfssl gencert -initca certs/cert-config.json | cfssljson -bare certs/ca
+# Step 3: Copy the CA config template
+cp certs-template/ca-config.json certs/ca/ca-config.json
 
-# Step 2: Copy the CA config template
-cp ca-config.json certs/ca-config.json
-
-# Step 3: Generate server certificate signed by the CA
-cfssl gencert -ca certs/ca.pem -ca-key certs/ca-key.pem \
-  -config certs/ca-config.json -profile server \
-  certs/cert-config.json | cfssljson -bare certs/keycloak
+# Step 4: Generate server certificate signed by the CA
+cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
+  -config certs/ca/ca-config.json -profile server \
+  certs/ca/servers/cert-config.json | cfssljson -bare certs/ca/servers/keycloak
 
 # Rename files to match Keycloak expectations
-mv certs/keycloak-key.pem certs/keycloak.key
-mv certs/keycloak.pem certs/keycloak.crt
+mv certs/ca/servers/keycloak-key.pem certs/ca/servers/keycloak.key
+mv certs/ca/servers/keycloak.pem certs/ca/servers/keycloak.crt
+
+# Create full chain certificate (server cert + CA cert)
+# This is useful for clients that need to validate the complete certificate chain
+cat certs/ca/servers/keycloak.crt certs/ca/ca.pem > certs/ca/servers/keycloak-chain.crt
 
 # Create a PKCS12 keystore (required by Keycloak)
-openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
-  -out certs/keycloak.p12 -name keycloak -password pass:changeit
+# Include the CA in the keystore for complete chain
+openssl pkcs12 -export -in certs/ca/servers/keycloak.crt -inkey certs/ca/servers/keycloak.key \
+  -certfile certs/ca/ca.pem \
+  -out certs/ca/servers/keycloak.p12 -name keycloak -password pass:changeit
 
 # Verify the certificate has the correct extensions (optional)
 # Should show "Digital Signature", "Key Encipherment", and "TLS Web Server Authentication"
-openssl x509 -in certs/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
+openssl x509 -in certs/ca/servers/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
 
 # Clean up intermediate files (optional)
-# Note: This removes copies in certs/ directory, but keeps the template files in the root
-rm certs/cert-config.json certs/ca-config.json certs/*.csr certs/ca.pem certs/ca-key.pem
+# Note: This removes copies in certs/ directory, but keeps:
+# - Template files in certs-template/ directory
+# - CA files (ca.pem, ca-key.pem) in certs/ca/ for future reuse
+rm certs/ca/servers/cert-config.json certs/ca/ca-cert-config.json certs/ca/ca-config.json certs/ca/servers/*.csr
+```
+
+#### Creating Additional Server Certificates
+
+Once you have a CA in the `certs/ca/` directory, you can easily create additional server certificates by reusing the same CA:
+
+```bash
+# Ensure CA exists
+if [ ! -f certs/ca/ca.pem ]; then
+  echo "Error: CA not found. Please create it first using the steps above."
+  exit 1
+fi
+
+# Create servers directory if it doesn't exist
+mkdir -p certs/ca/servers
+
+# Copy and customize the server certificate template
+cp certs-template/cert-config.json certs/ca/servers/new-server-config.json
+# Edit certs/ca/servers/new-server-config.json to customize CN, hosts, etc. for the new server
+
+# Copy CA config
+cp certs-template/ca-config.json certs/ca/ca-config.json
+
+# Generate new server certificate (e.g., for a different hostname)
+cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
+  -config certs/ca/ca-config.json -profile server \
+  certs/ca/servers/new-server-config.json | cfssljson -bare certs/ca/servers/new-server
+
+# Rename and create keystore as needed
+mv certs/ca/servers/new-server-key.pem certs/ca/servers/new-server.key
+mv certs/ca/servers/new-server.pem certs/ca/servers/new-server.crt
+
+# Create full chain certificate (server cert + CA cert)
+cat certs/ca/servers/new-server.crt certs/ca/ca.pem > certs/ca/servers/new-server-chain.crt
+
+# Create PKCS12 keystore with full chain
+openssl pkcs12 -export -in certs/ca/servers/new-server.crt -inkey certs/ca/servers/new-server.key \
+  -certfile certs/ca/ca.pem \
+  -out certs/ca/servers/new-server.p12 -name new-server -password pass:changeit
+
+# Clean up intermediate files
+rm certs/ca/servers/new-server-config.json certs/ca/ca-config.json certs/ca/servers/*.csr
 ```
 
 **Important:** 
-- The `cert-config.json` template includes proper key usage extensions (`keyUsage` and `extendedKeyUsage`) to prevent `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors in browsers.
-- The two-step process (CA + server certificate) is required because `cfssl gencert -initca` alone creates a CA certificate, not a server certificate with the correct extensions.
-- If you encounter `ERR_SSL_KEY_USAGE_INCOMPATIBLE`, ensure you're using the complete process above (not just `-initca`).
+- We use two separate config files in `certs-template/`: `ca-cert-config.json` for the CA and `cert-config.json` for server certificates
+- The CA is created once and kept in `certs/ca/` directory for reuse with multiple server certificates
+- Server certificates are stored in `certs/ca/servers/` directory
+- The `certs-template/cert-config.json` template includes proper key usage extensions (`keyUsage` and `extendedKeyUsage`) to prevent `ERR_SSL_KEY_USAGE_INCOMPATIBLE` errors in browsers
+- The two-step process (CA + server certificate) is required because `cfssl gencert -initca` alone creates a CA certificate, not a server certificate with the correct extensions
+- If you encounter `ERR_SSL_KEY_USAGE_INCOMPATIBLE`, ensure you're using the complete process above (not just `-initca`)
 
 Note: The PKCS12 keystore creation still requires openssl, but you can also use `keytool` (Java) if available:
 
 ```bash
 # Alternative: Create PKCS12 keystore using keytool
-keytool -importkeystore -srckeystore certs/keycloak.key -srcstoretype PEM \
-  -destkeystore certs/keycloak.p12 -deststoretype PKCS12 \
+keytool -importkeystore -srckeystore certs/ca/servers/keycloak.key -srcstoretype PEM \
+  -destkeystore certs/ca/servers/keycloak.p12 -deststoretype PKCS12 \
   -srcstorepass "" -deststorepass changeit \
   -alias keycloak
 ```
@@ -159,11 +232,28 @@ keytool -importkeystore -srckeystore certs/keycloak.key -srcstoretype PEM \
 
 When running the container, mount the certificate directory and configure Keycloak to use it:
 
+**Option 1: Using certificate files with full chain (recommended)**
+
 ```bash
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
-  -v $(pwd)/certs:/opt/keycloak/conf/certs:ro \
+  -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
+  -e KEYCLOAK_ADMIN=admin \
+  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
+  -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
+  -e KC_HTTPS_CERTIFICATE_CHAIN_FILE=/opt/keycloak/conf/certs/keycloak-chain.crt \
+  keycloak:latest
+```
+
+**Option 2: Using certificate files without chain**
+
+```bash
+podman run -d \
+  --name keycloak \
+  -p 8443:8443 \
+  -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
   -e KEYCLOAK_ADMIN=admin \
   -e KEYCLOAK_ADMIN_PASSWORD=admin \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
@@ -171,13 +261,13 @@ podman run -d \
   keycloak:latest
 ```
 
-Alternatively, you can use a Java keystore:
+**Option 3: Using Java keystore (includes full chain)**
 
 ```bash
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
-  -v $(pwd)/certs:/opt/keycloak/conf/certs:ro \
+  -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
   -e KEYCLOAK_ADMIN=admin \
   -e KEYCLOAK_ADMIN_PASSWORD=admin \
   -e KC_HTTPS_KEYSTORE_FILE=/opt/keycloak/conf/certs/keycloak.p12 \
@@ -275,43 +365,58 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
 - Certificate was generated without proper server authentication extensions
 
 **Solution:**
-1. Ensure you're using the updated `cert-config.json` template which includes:
+1. Ensure you're using the updated `certs-template/cert-config.json` template which includes:
    - `keyUsage` with `digitalSignature` and `keyEncipherment`
    - `extendedKeyUsage` with `serverAuth`
 2. Regenerate your certificates using the correct method:
    - **For OpenSSL:** Use the method above with the extensions configuration file
    - **For CFSSL:** Use the two-step process (CA + server certificate) as shown below:
    ```bash
-   # Create certs directory if it doesn't exist
-   mkdir -p certs
+   # Create certs directory structure if it doesn't exist
+   mkdir -p certs/ca/servers
    
-   # Remove only the certificate files (not the directory)
-   rm -f certs/*.pem certs/*.key certs/*.crt certs/*.p12 certs/*.json certs/*.csr
+   # Remove only the server certificate files (keep CA for reuse)
+   rm -f certs/ca/servers/keycloak.* certs/ca/servers/cert-config.json certs/ca/ca-config.json certs/ca/servers/*.csr
    
-   # Copy the updated template
-   cp cert-config.json certs/cert-config.json
+   # Step 1: Create or reuse CA
+   if [ ! -f certs/ca/ca.pem ]; then
+     echo "Creating new CA..."
+     cp certs-template/ca-cert-config.json certs/ca/ca-cert-config.json
+     cfssl gencert -initca certs/ca/ca-cert-config.json | cfssljson -bare certs/ca/ca
+   else
+     echo "Using existing CA"
+   fi
    
-   # Step 1: Create a CA
-   cfssl gencert -initca certs/cert-config.json | cfssljson -bare certs/ca
+   # Step 2: Copy the server certificate template
+   cp certs-template/cert-config.json certs/ca/servers/cert-config.json
    
-   # Step 2: Copy the CA config template
-   cp ca-config.json certs/ca-config.json
+   # Step 3: Copy the CA config template
+   cp certs-template/ca-config.json certs/ca/ca-config.json
    
-   # Step 3: Generate server certificate signed by CA
-   cfssl gencert -ca certs/ca.pem -ca-key certs/ca-key.pem \
-     -config certs/ca-config.json -profile server \
-     certs/cert-config.json | cfssljson -bare certs/keycloak
+   # Step 4: Generate server certificate signed by CA
+   cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
+     -config certs/ca/ca-config.json -profile server \
+     certs/ca/servers/cert-config.json | cfssljson -bare certs/ca/servers/keycloak
    
    # Rename files
-   mv certs/keycloak-key.pem certs/keycloak.key
-   mv certs/keycloak.pem certs/keycloak.crt
+   mv certs/ca/servers/keycloak-key.pem certs/ca/servers/keycloak.key
+   mv certs/ca/servers/keycloak.pem certs/ca/servers/keycloak.crt
    
-   # Create PKCS12 keystore
-   openssl pkcs12 -export -in certs/keycloak.crt -inkey certs/keycloak.key \
-     -out certs/keycloak.p12 -name keycloak -password pass:changeit
+   # Create full chain certificate (server cert + CA cert)
+   cat certs/ca/servers/keycloak.crt certs/ca/ca.pem > certs/ca/servers/keycloak-chain.crt
+   
+   # Create PKCS12 keystore with full chain
+   openssl pkcs12 -export -in certs/ca/servers/keycloak.crt -inkey certs/ca/servers/keycloak.key \
+     -certfile certs/ca/ca.pem \
+     -out certs/ca/servers/keycloak.p12 -name keycloak -password pass:changeit
    
    # Verify extensions (should show "Digital Signature" and "Key Encipherment")
-   openssl x509 -in certs/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
+   openssl x509 -in certs/ca/servers/keycloak.crt -text -noout | grep -A 10 "X509v3 extensions"
+   ```
+   
+   **Note:** If you need to regenerate the CA (e.g., if it was created incorrectly), remove it first:
+   ```bash
+   rm -f certs/ca/ca.pem certs/ca/ca-key.pem certs/ca/ca.csr
    ```
 3. Restart your Keycloak container
 
