@@ -16,7 +16,9 @@ keycloak-misc/
 │   ├── keycloak.service          # Systemd service file
 │   └── Readme.md                 # Detailed VM setup guide
 ├── podman/                 # Podman/Docker container deployments
-│   ├── DockerFile              # Keycloak container image
+│   ├── DockerFile              # Keycloak container image (Debian base)
+│   ├── DockerFile.official     # Official Keycloak image variant
+│   ├── build.sh                # Automated multi-arch build script
 │   ├── create-certs.sh         # Certificate creation script
 │   ├── certs-template/         # Certificate configuration templates
 │   └── README.md               # Podman setup guide
@@ -61,11 +63,25 @@ sudo ./deploy-service.sh
 
 For containerized deployments using Podman or Docker, see the [Podman setup guide](podman/README.md).
 
-**Quick start:**
+**Automated build (recommended):**
+```bash
+cd podman
+./build.sh
+podman run -d --name keycloak -p 8443:8443 keycloak:latest
+```
+
+**Manual build:**
 ```bash
 cd podman
 podman build -t keycloak:latest -f DockerFile .
 podman run -d --name keycloak -p 8443:8443 keycloak:latest
+```
+
+**Multi-architecture build:**
+```bash
+cd podman
+./build.sh --platform linux/amd64
+./build.sh --platform linux/arm64
 ```
 
 **With certificates:**
@@ -97,11 +113,14 @@ podman run -d --name keycloak -p 8443:8443 \
 
 ### Podman/Docker (`podman/`)
 - Containerized Keycloak deployment
+- Multi-architecture support (x86_64/amd64 and arm64)
 - Rootless Podman compatibility
+- Automated build script with platform detection
 - Automated certificate creation (CFSSL/OpenSSL)
 - Development and production modes
 - Custom themes and providers support
 - HTTPS-only configuration (port 8443)
+- JDK 21 support (required by latest Keycloak versions)
 
 ## 🔧 Requirements
 
@@ -119,8 +138,10 @@ podman run -d --name keycloak -p 8443:8443 \
 
 ### Podman/Docker
 - Podman or Docker installed
-- CFSSL or OpenSSL (for certificate generation)
+- Docker Buildx (for multi-architecture builds with Docker)
+- CFSSL or OpenSSL (for certificate generation, optional)
 - TLS certificates (optional, can be generated)
+- JDK 21 (included in container image)
 
 ## 📖 Documentation
 
