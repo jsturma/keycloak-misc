@@ -1,28 +1,101 @@
 # Keycloak Podman Setup
 
-This directory contains a Dockerfile for running Keycloak 26.x with Podman compatibility.
+This directory contains Dockerfiles for running Keycloak 26.x with Podman compatibility and multi-architecture support.
 
 ## Overview
 
-The Dockerfile is configured to:
+The Dockerfiles are configured to:
 - Use Keycloak 26.4.7 (latest version)
 - Run in development mode (`start-dev`)
 - Support rootless Podman operations
 - Expose HTTPS on port 8443
+- Support multiple architectures (x86_64/amd64 and arm64)
+- Automatically fall back to Debian base if official image unavailable
+
+## Dockerfile Options
+
+Two Dockerfiles are provided:
+
+1. **`DockerFile`** (Default) - Builds from Debian base with JDK and Keycloak tar.gz
+   - Always works for both amd64 and arm64
+   - Downloads and installs Keycloak from GitHub releases
+   - Installs OpenJDK 21 (required by latest Keycloak versions)
+   - Recommended for maximum compatibility
+
+2. **`DockerFile.official`** - Uses official Keycloak image from quay.io
+   - Faster builds if official image exists for your platform
+   - May not be available for all architectures
+   - Use if you want to leverage the official optimized image
 
 ## Building the Image
 
-To build the Keycloak image using Podman:
+### Automated Build Script (Recommended)
+
+Use the provided build script which automatically checks for platform availability:
 
 ```bash
-podman build -t keycloak:latest -f DockerFile .
+# Build for current platform (auto-detects architecture)
+./build.sh
+
+# Build for specific platform
+./build.sh --platform linux/amd64
+./build.sh --platform linux/arm64
+
+# Force Debian base (skip official image check)
+./build.sh --force-debian
+
+# Force official image (may fail if unavailable)
+./build.sh --force-official
+
+# Custom version
+./build.sh --version 26.4.7 --image my-keycloak:latest
 ```
 
-Or using Docker:
+### Manual Build
+
+#### Using DockerFile (Debian Base - Always Works)
+
+**Single Architecture Build:**
 
 ```bash
+# Podman
+podman build -t keycloak:latest -f DockerFile .
+
+# Docker
 docker build -t keycloak:latest -f DockerFile .
 ```
+
+**Multi-Architecture Build:**
+
+```bash
+# Podman - Build for specific platform
+podman build --platform linux/amd64 -t keycloak:amd64 -f DockerFile .
+podman build --platform linux/arm64 -t keycloak:arm64 -f DockerFile .
+
+# Docker Buildx - Build for multiple platforms
+docker buildx create --name multiarch --use
+docker buildx build --platform linux/amd64,linux/arm64 -t keycloak:latest -f DockerFile . --push
+```
+
+#### Using DockerFile.official (Official Image - If Available)
+
+**Single Architecture Build:**
+
+```bash
+# Podman
+podman build -t keycloak:latest -f DockerFile.official .
+
+# Docker
+docker build -t keycloak:latest -f DockerFile.official .
+```
+
+**Note:** If the official image doesn't exist for your platform, the build will fail. Use `DockerFile` instead.
+
+### Platform Detection
+
+The Dockerfiles automatically detect the target architecture and configure Java accordingly:
+- **amd64**: Uses `java-21-openjdk-amd64`
+- **arm64**: Uses `java-21-openjdk-arm64`
 
 ## Creating SSL/TLS Certificates
 
