@@ -273,6 +273,9 @@ chmod +x create-certs.sh
 # Regenerate CA (forces recreation)
 ./create-certs.sh --force-ca
 
+# Fix permissions for existing certificates (for container use)
+./create-certs.sh --fix-permissions
+
 # Verify existing certificates
 ./create-certs.sh --verify
 
@@ -286,7 +289,14 @@ The script automatically:
 - Creates server certificates with full chain
 - Generates PKCS12 keystores
 - Verifies certificate extensions
+- **Sets permissions (644) for container compatibility** - files are readable by keycloak user (UID 1000)
 - Cleans up intermediate files
+
+**Important for Container Use:**
+- The script automatically sets permissions to 644 (readable by all) when creating certificates
+- This ensures the keycloak user (UID 1000) inside the container can read the certificate files
+- If you have existing certificates with incorrect permissions, use `--fix-permissions` to update them
+- For security: these permissions are acceptable since the certificate directory is only mounted into the container
 
 #### Manual Certificate Creation with CFSSL
 
@@ -437,8 +447,10 @@ podman run -d \
   --name keycloak \
   -p 8443:8443 \
   -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
   -e KC_HTTPS_CERTIFICATE_CHAIN_FILE=/opt/keycloak/conf/certs/keycloak-chain.crt \
@@ -452,8 +464,10 @@ podman run -d \
   --name keycloak \
   -p 8443:8443 \
   -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
   keycloak:latest
@@ -466,8 +480,10 @@ podman run -d \
   --name keycloak \
   -p 8443:8443 \
   -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_KEYSTORE_FILE=/opt/keycloak/conf/certs/keycloak.p12 \
   -e KC_HTTPS_KEYSTORE_PASSWORD=changeit \
   keycloak:latest
@@ -498,10 +514,14 @@ podman run -d \
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   keycloak:latest
 ```
+
+**Note:** The deprecated `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` environment variables still work but will show warnings. Use `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` instead.
 
 ### With Volume for Data Persistence
 
@@ -510,8 +530,10 @@ podman run -d \
   --name keycloak \
   -p 8443:8443 \
   -v keycloak-data:/opt/keycloak/data \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD=admin \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   keycloak:latest
 ```
 
@@ -522,8 +544,13 @@ podman run -d \
 The container runs in development mode (`start-dev`), which:
 - Uses an in-memory database (H2)
 - Enables the admin console
-- Auto-creates an admin user if `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` are set
+- Auto-creates an admin user if `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` are set
 - Not suitable for production use
+
+**HTTPS-Only Configuration:**
+- Set `KC_HTTP_ENABLED=false` to disable HTTP (port 8080)
+- Set `KC_HTTPS_PORT=8443` to use HTTPS on port 8443
+- This ensures Keycloak only listens on HTTPS, improving security
 
 ### Custom Themes and Providers
 
@@ -548,10 +575,51 @@ The Dockerfile is configured for rootless Podman:
 Once the container is running:
 - Admin Console: `https://localhost:8443`
 - Default admin credentials (if set via environment variables):
-  - Username: `admin`
-  - Password: `admin` (or your `KEYCLOAK_ADMIN_PASSWORD` value)
+  - Username: `admin` (or your `KC_BOOTSTRAP_ADMIN_USERNAME` value)
+  - Password: `admin` (or your `KC_BOOTSTRAP_ADMIN_PASSWORD` value)
+
+**Important:** 
+- Ensure `KC_HTTP_ENABLED=false` is set to disable HTTP (port 8080)
+- Keycloak will only listen on HTTPS (port 8443) when HTTP is disabled
+- Check logs to verify: `podman logs <container-id>` should show "Listening on: https://0.0.0.0:8443" without HTTP port
 
 ## Troubleshooting
+
+### Certificate Permission Errors
+
+If Keycloak cannot read the certificate files in the container, you'll see errors like:
+```
+java.io.IOException: Permission denied
+```
+
+**Cause:** Certificate files created on the host have permissions that only allow the owner to read them. When mounted into a Podman container, the keycloak user (UID 1000) cannot read them.
+
+**Solution:**
+
+1. **Fix permissions using the script (recommended):**
+   ```bash
+   ./create-certs.sh --fix-permissions
+   ```
+
+2. **Fix permissions manually:**
+   ```bash
+   # Fix CA permissions
+   chmod 644 certs/ca/ca.pem certs/ca/ca-key.pem
+   
+   # Fix server certificate permissions
+   chmod 644 certs/ca/servers/*.crt \
+             certs/ca/servers/*.key \
+             certs/ca/servers/*.p12 \
+             certs/ca/servers/*.pem
+   ```
+
+3. **Verify permissions:**
+   ```bash
+   ls -la certs/ca/servers/
+   # Files should show -rw-r--r-- (644)
+   ```
+
+**Note:** Setting permissions to 644 (readable by all) is acceptable for container volumes since the files are only accessible within the container environment.
 
 ### ERR_SSL_KEY_USAGE_INCOMPATIBLE
 
@@ -621,8 +689,32 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
 
 ## Notes
 
-- The container exposes only HTTPS (port 8443)
+- The container exposes only HTTPS (port 8443) when `KC_HTTP_ENABLED=false` is set
+- Always set `KC_HTTP_ENABLED=false` and `KC_HTTPS_PORT=8443` for HTTPS-only configuration
+- Use `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` instead of deprecated `KEYCLOAK_ADMIN` variables
 - For production use, change `start-dev` to `start` in the CMD instruction
 - Ensure you have proper SSL certificates configured for production deployments
 - The build step (`kc.sh build`) is included for production readiness
+
+## Environment Variables
+
+### Admin User Configuration
+
+**New (Recommended):**
+- `KC_BOOTSTRAP_ADMIN_USERNAME` - Admin username (replaces `KEYCLOAK_ADMIN`)
+- `KC_BOOTSTRAP_ADMIN_PASSWORD` - Admin password (replaces `KEYCLOAK_ADMIN_PASSWORD`)
+
+**Deprecated (Still works but shows warnings):**
+- `KEYCLOAK_ADMIN` - Use `KC_BOOTSTRAP_ADMIN_USERNAME` instead
+- `KEYCLOAK_ADMIN_PASSWORD` - Use `KC_BOOTSTRAP_ADMIN_PASSWORD` instead
+
+### HTTPS Configuration
+
+- `KC_HTTP_ENABLED=false` - Disable HTTP listener (port 8080)
+- `KC_HTTPS_PORT=8443` - HTTPS port (default: 8443)
+- `KC_HTTPS_CERTIFICATE_FILE` - Path to certificate file
+- `KC_HTTPS_CERTIFICATE_KEY_FILE` - Path to private key file
+- `KC_HTTPS_CERTIFICATE_CHAIN_FILE` - Path to certificate chain file (optional)
+- `KC_HTTPS_KEYSTORE_FILE` - Path to keystore file (alternative to certificate files)
+- `KC_HTTPS_KEYSTORE_PASSWORD` - Keystore password
 

@@ -85,16 +85,22 @@ cd podman
 ./build.sh --platform linux/arm64
 ```
 
-**With certificates:**
+**With certificates (HTTPS-only):**
 ```bash
 cd podman
 ./create-certs.sh --all
 podman run -d --name keycloak -p 8443:8443 \
   -v $(pwd)/certs/ca/servers:/opt/keycloak/conf/certs:ro \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
   keycloak:latest
 ```
+
+**Note:** Use `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` instead of the deprecated `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` variables.
 
 ## 📋 Features
 

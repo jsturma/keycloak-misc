@@ -92,6 +92,9 @@ create_ca() {
     
     print_info "CA created successfully at ${CA_DIR}/${CA_NAME}.pem"
     
+    # Set permissions for container use
+    chmod 644 "${CA_DIR}/${CA_NAME}.pem" "${CA_DIR}/${CA_NAME}-key.pem" 2>/dev/null || true
+    
     # Clean up temporary config
     rm -f "${CA_DIR}/ca-cert-config.json"
 }
@@ -154,11 +157,23 @@ create_server_cert() {
     # Clean up intermediate files
     rm -f "${SERVERS_DIR}/${server_name}-config.json" "${CA_DIR}/ca-config.json" "${SERVERS_DIR}"/*.csr
     
+    # Set permissions for container use
+    # Certificates: readable by all (644)
+    # Private keys: readable by all (644) - acceptable in container volumes
+    # Keystores: readable by all (644)
+    print_info "Setting permissions for container use..."
+    chmod 644 "${SERVERS_DIR}/${server_name}.crt" \
+              "${SERVERS_DIR}/${server_name}-chain.crt" \
+              "${SERVERS_DIR}/${server_name}.p12" \
+              "${SERVERS_DIR}/${server_name}.key" 2>/dev/null || true
+    
     print_info "Server certificate created successfully:"
     echo "  Certificate: ${SERVERS_DIR}/${server_name}.crt"
     echo "  Private Key: ${SERVERS_DIR}/${server_name}.key"
     echo "  Full Chain:  ${SERVERS_DIR}/${server_name}-chain.crt"
     echo "  Keystore:    ${SERVERS_DIR}/${server_name}.p12"
+    echo ""
+    print_info "Permissions set to 644 for container compatibility (keycloak user UID 1000)"
 }
 
 regenerate_ca() {
@@ -187,6 +202,7 @@ OPTIONS:
     -s, --server NAME        Create server certificate (default: keycloak)
     -a, --all                Create CA and default server certificate
     -v, --verify             Verify existing certificates
+    -p, --fix-permissions    Fix permissions for container use (readable by UID 1000)
 
 SERVER_NAME:
     Name for the server certificate (default: keycloak)
@@ -197,8 +213,29 @@ EXAMPLES:
     $0 --server keycloak         # Create keycloak server cert
     $0 --server new-server       # Create new-server certificate
     $0 --force-ca                # Regenerate CA
+    $0 --fix-permissions        # Fix permissions for existing certificates
 
 EOF
+}
+
+fix_permissions() {
+    print_info "Fixing permissions for container use..."
+    
+    # Fix CA permissions
+    if [ -f "${CA_DIR}/${CA_NAME}.pem" ]; then
+        chmod 644 "${CA_DIR}/${CA_NAME}.pem" "${CA_DIR}/${CA_NAME}-key.pem" 2>/dev/null || true
+        print_info "Fixed CA permissions"
+    fi
+    
+    # Fix server certificate permissions
+    if [ -d "${SERVERS_DIR}" ]; then
+        find "${SERVERS_DIR}" -type f \( -name "*.crt" -o -name "*.key" -o -name "*.p12" -o -name "*.pem" \) -exec chmod 644 {} \; 2>/dev/null || true
+        print_info "Fixed server certificate permissions in ${SERVERS_DIR}"
+    else
+        print_warn "No server certificates directory found"
+    fi
+    
+    print_info "Permissions fixed. Files are now readable by container user (UID 1000)"
 }
 
 verify_certificates() {
@@ -269,6 +306,10 @@ main() {
                 ;;
             -v|--verify)
                 verify_certificates
+                shift
+                ;;
+            -p|--fix-permissions)
+                fix_permissions
                 shift
                 ;;
             *)
