@@ -105,12 +105,21 @@ build_image() {
     
     # Build with appropriate arguments
     log_info "Building with: ${BUILD_CMD}"
-    if ! $BUILD_CMD \
+    if $BUILD_CMD \
         --build-arg KEYCLOAK_VERSION="${KEYCLOAK_VERSION}" \
         --build-arg TARGETPLATFORM="${platform:-}" \
         -f "${dockerfile}" \
         -t "${IMAGE_NAME}" \
         .; then
+        log_info "Build successful!"
+        
+        # Optionally run dive analysis
+        if [ "${ANALYZE_IMAGE:-false}" = "true" ] && command -v dive &> /dev/null; then
+            echo ""
+            log_info "Running dive analysis..."
+            dive "${IMAGE_NAME}" || true
+        fi
+    else
         if [ "$use_official" = "true" ] && [ "$dockerfile" = "DockerFile.official" ]; then
             log_warn "Official image build failed, trying Debian base..."
             if [ -f "DockerFile" ]; then
@@ -163,6 +172,10 @@ main() {
                 IMAGE_NAME="$2"
                 shift 2
                 ;;
+            --analyze)
+                ANALYZE_IMAGE="true"
+                shift
+                ;;
             --help)
                 echo "Usage: $0 [OPTIONS]"
                 echo ""
@@ -172,6 +185,7 @@ main() {
                 echo "  --force-official       Force use of official image (skip check, may fail)"
                 echo "  --version VERSION      Keycloak version (default: ${KEYCLOAK_VERSION})"
                 echo "  --image IMAGE          Output image name (default: ${IMAGE_NAME})"
+                echo "  --analyze              Run dive analysis after successful build"
                 echo "  --help                 Show this help message"
                 exit 0
                 ;;

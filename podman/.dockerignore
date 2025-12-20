@@ -1,0 +1,49 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Build artifacts
+*.log
+*.tmp
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Certificates (should be mounted, not copied)
+certs/
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# Scripts (not needed in image)
+*.sh
+build.sh
+analyze-image.sh
+
+# Templates (not needed in image)
+certs-template/
+
+# Docker files (not needed in image)
+Dockerfile*
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+

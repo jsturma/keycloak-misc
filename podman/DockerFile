@@ -16,27 +16,17 @@ ARG KEYCLOAK_VERSION=26.4.7
 # Using bookworm (Debian 12) which includes OpenJDK 21
 FROM --platform=$TARGETPLATFORM debian:bookworm-slim
 
-# Install required packages
+# Install all packages and set up Java environment in a single layer
+# This reduces image size by combining operations and cleaning up in the same layer
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
         tar \
         gzip \
         ca-certificates \
-        && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install OpenJDK 21 (supports both amd64 and arm64)
-# Debian bookworm includes OpenJDK 21 in default repositories
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
         openjdk-21-jdk \
         && \
-    rm -rf /var/lib/apt/lists/*
-
-# Detect architecture and set JAVA_HOME
-# Debian package structure: java-21-openjdk-amd64 or java-21-openjdk-arm64
-RUN ARCH=$(dpkg --print-architecture) && \
+    ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "amd64" ]; then \
         JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"; \
     elif [ "$ARCH" = "arm64" ]; then \
@@ -46,52 +36,41 @@ RUN ARCH=$(dpkg --print-architecture) && \
     fi && \
     echo "export JAVA_HOME=${JAVA_HOME}" >> /etc/profile.d/java.sh && \
     echo "export PATH=${JAVA_HOME}/bin:\${PATH}" >> /etc/profile.d/java.sh && \
-    chmod +x /etc/profile.d/java.sh
+    chmod +x /etc/profile.d/java.sh && \
+    echo "source /etc/profile.d/java.sh" >> /etc/bash.bashrc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Set JAVA_HOME environment variable (architecture-specific)
 # Will be set correctly by the profile script, but set a default for immediate use
 ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
-# Source the Java environment in shell sessions
-RUN echo "source /etc/profile.d/java.sh" >> /etc/bash.bashrc
-
-# Create keycloak user
-RUN groupadd -r keycloak && useradd -r -g keycloak -u 1000 -d /opt/keycloak -s /sbin/nologin keycloak
-
-# Download and extract Keycloak
+# Create keycloak user and download Keycloak in a single layer
 ARG KEYCLOAK_VERSION=26.4.7
-RUN mkdir -p /opt && \
+RUN groupadd -r keycloak && \
+    useradd -r -g keycloak -u 1000 -d /opt/keycloak -s /sbin/nologin keycloak && \
+    mkdir -p /opt && \
     curl -fsSL "https://github.com/keycloak/keycloak/releases/download/${KEYCLOAK_VERSION}/keycloak-${KEYCLOAK_VERSION}.tar.gz" | \
     tar -xzC /opt && \
     mv /opt/keycloak-${KEYCLOAK_VERSION} /opt/keycloak && \
-    chown -R keycloak:keycloak /opt/keycloak
+    chown -R keycloak:keycloak /opt/keycloak && \
+    rm -rf /tmp/* /var/tmp/*
 
 # Set working directory
 WORKDIR /opt/keycloak
-
-# Switch to root for final setup
-USER root
-
-# Fix JAVA_HOME to match architecture (source the profile script)
-RUN source /etc/profile.d/java.sh && \
-    export JAVA_HOME && \
-    export PATH="${JAVA_HOME}/bin:${PATH}" && \
-    java -version || echo "Java version check completed"
 
 # Optional: custom themes / providers
 # COPY themes /opt/keycloak/themes
 # COPY providers/*.jar /opt/keycloak/providers/
 
-# Ensure correct ownership for rootless Podman
-RUN chown -R 1000:0 /opt/keycloak
+# Ensure correct ownership for rootless Podman and build Keycloak
+# Combined into single layer to reduce image size
+RUN chown -R 1000:0 /opt/keycloak && \
+    /opt/keycloak/bin/kc.sh build || echo "Build step skipped or failed, will build at runtime"
 
 # Drop privileges
 USER 1000
-
-# Build Keycloak (recommended for production)
-# Note: This step is architecture-specific and will build for the target platform
-RUN /opt/keycloak/bin/kc.sh build || echo "Build step skipped or failed, will build at runtime"
 
 # Expose HTTPS only (no HTTP)
 EXPOSE 8443

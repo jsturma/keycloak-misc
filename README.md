@@ -16,9 +16,10 @@ keycloak-misc/
 │   ├── keycloak.service          # Systemd service file
 │   └── Readme.md                 # Detailed VM setup guide
 ├── podman/                 # Podman/Docker container deployments
-│   ├── DockerFile              # Keycloak container image (Debian base)
+│   ├── DockerFile              # Keycloak container image (Debian base, optimized)
 │   ├── DockerFile.official     # Official Keycloak image variant
 │   ├── build.sh                # Automated multi-arch build script
+│   ├── analyze-image.sh        # Image analysis with dive
 │   ├── create-certs.sh         # Certificate creation script
 │   ├── certs-template/         # Certificate configuration templates
 │   └── README.md               # Podman setup guide
@@ -116,6 +117,7 @@ podman run -d --name keycloak -p 8443:8443 \
 - Multi-architecture support (x86_64/amd64 and arm64)
 - Rootless Podman compatibility
 - Automated build script with platform detection
+- Image optimization with dive integration
 - Automated certificate creation (CFSSL/OpenSSL)
 - Development and production modes
 - Custom themes and providers support

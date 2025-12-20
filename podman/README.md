@@ -49,6 +49,9 @@ Use the provided build script which automatically checks for platform availabili
 
 # Custom version
 ./build.sh --version 26.4.7 --image my-keycloak:latest
+
+# Build and analyze image with dive
+./build.sh --analyze
 ```
 
 ### Manual Build
@@ -96,6 +99,46 @@ docker build -t keycloak:latest -f DockerFile.official .
 The Dockerfiles automatically detect the target architecture and configure Java accordingly:
 - **amd64**: Uses `java-21-openjdk-amd64`
 - **arm64**: Uses `java-21-openjdk-arm64`
+
+### Image Optimization with Dive
+
+The Dockerfile has been optimized to reduce image size by:
+- Combining RUN commands to minimize layers
+- Cleaning up package manager cache in the same layer
+- Removing temporary files immediately after use
+- Using minimal base images (debian:bookworm-slim)
+
+To analyze your built image and identify further optimization opportunities:
+
+**Using the analyze script:**
+```bash
+./analyze-image.sh keycloak:latest
+```
+
+**Using dive directly:**
+```bash
+# Install dive first
+# macOS: brew install dive
+# Linux: See https://github.com/wagoodman/dive#installation
+
+# Analyze image
+dive keycloak:latest
+
+# Or use Docker/Podman to run dive
+podman run --rm -it -v /run/podman/podman.sock:/var/run/docker.sock \
+  wagoodman/dive keycloak:latest
+```
+
+**Build with automatic analysis:**
+```bash
+./build.sh --analyze
+```
+
+Dive will show you:
+- Layer-by-layer breakdown of your image
+- File sizes and inefficiencies
+- Wasted space opportunities
+- Image efficiency score
 
 ## Creating SSL/TLS Certificates
 
