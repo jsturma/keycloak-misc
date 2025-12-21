@@ -6,9 +6,9 @@ metadata:
     app: keycloak
 spec:
   ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
+    - name: https
+      port: 8443
+      targetPort: 8443
   selector:
     app: keycloak
   type: LoadBalancer
@@ -31,21 +31,30 @@ spec:
     spec:
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:26.1.3
+          image: quay.io/keycloak/keycloak:26.4.7
           args: ["start-dev"]
           env:
-            - name: KEYCLOAK_ADMIN
+            # New environment variables (recommended, no deprecation warnings)
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
               value: "admin"
-            - name: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               value: "admin"
+            # HTTPS-only configuration
+            - name: KC_HTTP_ENABLED
+              value: "false"
+            - name: KC_HTTPS_PORT
+              value: "8443"
+            # Other configuration
             - name: KC_PROXY
               value: "edge"
             - name: KC_HEALTH_ENABLED
               value: "true"
           ports:
-            - name: http
-              containerPort: 8080
+            - name: https
+              containerPort: 8443
+              protocol: TCP
           readinessProbe:
             httpGet:
               path: /health/ready
               port: 9000
+              scheme: HTTPS

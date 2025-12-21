@@ -108,7 +108,10 @@ podman run -d --name keycloak -p 8443:8443 \
 - Helm chart with configurable values
 - Plain Kubernetes manifests for quick deployment
 - Development mode configuration
+- HTTPS-only configuration (port 8443)
 - Health checks and readiness probes
+- Updated to use new environment variables (KC_BOOTSTRAP_ADMIN_USERNAME)
+- Keycloak 26.4.7 with JDK 21 support
 
 ### Bare-Metal VM (`bm-vm/`)
 - Complete automated setup script

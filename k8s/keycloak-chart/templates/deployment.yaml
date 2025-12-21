@@ -20,10 +20,26 @@ spec:
       containers:
       - args: {{- toYaml .Values.keycloak.keycloak.args | nindent 8 }}
         env:
+        # New environment variables (recommended, no deprecation warnings)
+        - name: KC_BOOTSTRAP_ADMIN_USERNAME
+          value: {{ quote .Values.keycloak.keycloak.env.kcBootstrapAdminUsername | default .Values.keycloak.keycloak.env.keycloakAdmin }}
+        - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+          value: {{ quote .Values.keycloak.keycloak.env.kcBootstrapAdminPassword | default .Values.keycloak.keycloak.env.keycloakAdminPassword }}
+        # Deprecated environment variables (for backward compatibility)
+        {{- if .Values.keycloak.keycloak.env.keycloakAdmin }}
         - name: KEYCLOAK_ADMIN
           value: {{ quote .Values.keycloak.keycloak.env.keycloakAdmin }}
+        {{- end }}
+        {{- if .Values.keycloak.keycloak.env.keycloakAdminPassword }}
         - name: KEYCLOAK_ADMIN_PASSWORD
           value: {{ quote .Values.keycloak.keycloak.env.keycloakAdminPassword }}
+        {{- end }}
+        # HTTPS configuration
+        - name: KC_HTTP_ENABLED
+          value: {{ quote .Values.keycloak.keycloak.env.kcHttpEnabled | default "false" }}
+        - name: KC_HTTPS_PORT
+          value: {{ quote .Values.keycloak.keycloak.env.kcHttpsPort | default "8443" }}
+        # Other configuration
         - name: KC_PROXY
           value: {{ quote .Values.keycloak.keycloak.env.kcProxy }}
         - name: KC_HEALTH_ENABLED
@@ -34,10 +50,12 @@ spec:
           | default .Chart.AppVersion }}
         name: keycloak
         ports:
-        - containerPort: 8080
-          name: http
+        - containerPort: 8443
+          name: https
+          protocol: TCP
         readinessProbe:
           httpGet:
             path: /health/ready
             port: 9000
+            scheme: HTTPS
         resources: {}
