@@ -17,6 +17,7 @@ keycloak:
     image:
       repository: quay.io/keycloak/keycloak
       tag: 26.4.7
+  namespace: keycloak
   ports:
   - name: https
     port: 8443

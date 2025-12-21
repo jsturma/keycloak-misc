@@ -34,13 +34,23 @@ keycloak-misc/
 #### Using Helm Chart
 
 ```bash
+# Create the keycloak namespace (if it doesn't exist)
+kubectl create namespace keycloak
+
+# Install with Helm (namespace is set in values.yaml)
 cd k8s
-helm install keycloak ./keycloak-chart -f keycloak-values.yaml
+helm install keycloak ./keycloak-chart -f keycloak-values.yaml -n keycloak
+
+# Or install to a specific namespace
+helm install keycloak ./keycloak-chart -f keycloak-values.yaml --create-namespace -n keycloak
 ```
 
 #### Using Plain Kubernetes YAML
 
 ```bash
+# Create the keycloak namespace (if it doesn't exist)
+kubectl create namespace keycloak
+
 # Apply the deployment
 kubectl apply -f k8s/keycloak_start_dev.yaml
 
@@ -50,9 +60,16 @@ kubectl apply -f k8s/keycloak_start_dev.yaml
 
 # Or force replace:
 kubectl replace --force -f k8s/keycloak_start_dev.yaml
+
+# Check deployment status
+kubectl get pods -n keycloak
+kubectl logs -n keycloak -l app=keycloak
 ```
 
-**Note:** If you see deprecation warnings or the old Keycloak version (26.1.3) in logs, delete the old deployment and recreate it with the updated YAML.
+**Note:** 
+- The deployment uses the `keycloak` namespace (not `default`)
+- If you see deprecation warnings or the old Keycloak version (26.1.3) in logs, delete the old deployment and recreate it with the updated YAML
+- Remember to use `-n keycloak` when running kubectl commands
 
 ### Bare-Metal VM Deployment
 

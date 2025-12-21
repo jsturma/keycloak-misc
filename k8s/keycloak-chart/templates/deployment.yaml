@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "keycloak-chart.fullname" . }}-keycloak
+  namespace: {{ .Values.keycloak.namespace | default "default" }}
   labels:
     app: keycloak
   {{- include "keycloak-chart.labels" . | nindent 4 }}
