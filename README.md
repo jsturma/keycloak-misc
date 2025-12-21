@@ -41,8 +41,18 @@ helm install keycloak ./keycloak-chart -f keycloak-values.yaml
 #### Using Plain Kubernetes YAML
 
 ```bash
+# Apply the deployment
 kubectl apply -f k8s/keycloak_start_dev.yaml
+
+# If updating an existing deployment, delete and recreate:
+kubectl delete -f k8s/keycloak_start_dev.yaml
+kubectl apply -f k8s/keycloak_start_dev.yaml
+
+# Or force replace:
+kubectl replace --force -f k8s/keycloak_start_dev.yaml
 ```
+
+**Note:** If you see deprecation warnings or the old Keycloak version (26.1.3) in logs, delete the old deployment and recreate it with the updated YAML.
 
 ### Bare-Metal VM Deployment
 

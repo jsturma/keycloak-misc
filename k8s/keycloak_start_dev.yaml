@@ -40,10 +40,17 @@ spec:
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               value: "admin"
             # HTTPS-only configuration
+            # Note: In start-dev mode, HTTP may still be enabled for development convenience
+            # For production, use "start" instead of "start-dev" for full HTTPS-only mode
             - name: KC_HTTP_ENABLED
               value: "false"
             - name: KC_HTTPS_PORT
               value: "8443"
+            # Hostname configuration (adjust for your environment)
+            - name: KC_HOSTNAME
+              value: "keycloak.local"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
             # Other configuration
             - name: KC_PROXY
               value: "edge"
@@ -57,4 +64,8 @@ spec:
             httpGet:
               path: /health/ready
               port: 9000
-              scheme: HTTPS
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
