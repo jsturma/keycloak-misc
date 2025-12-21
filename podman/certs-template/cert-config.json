@@ -1,10 +1,11 @@
 {
-  "CN": "localhost",
+  "CN": "keycloak.jslab.lan",
   "hosts": [
     "localhost",
     "127.0.0.1",
     "keycloak",
-    "keycloak.local"
+    "keycloak.local",
+    "keycloak.jslab.lan"
   ],
   "key": {
     "algo": "rsa",
@@ -17,7 +18,7 @@
       "L": "City",
       "O": "Keycloak",
       "OU": "IT Department",
-      "CN": "localhost"
+      "CN": "keycloak.jslab.lan"
     }
   ],
   "keyUsage": {
