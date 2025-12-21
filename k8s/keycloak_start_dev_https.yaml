@@ -7,16 +7,20 @@ metadata:
     app: keycloak
 spec:
   ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
-    # Uncomment for HTTPS (requires TLS certificates)
-    # - name: https
-    #   port: 8443
-    #   targetPort: 8443
+    - name: https
+      port: 8443
+      targetPort: 8443
   selector:
     app: keycloak
   type: LoadBalancer
+---
+# Note: Create the TLS secret first using:
+#   ./create-tls-secret.sh
+# Or manually:
+#   kubectl create secret tls keycloak-tls \
+#     --cert=../podman/certs/ca/servers/keycloak.crt \
+#     --key=../podman/certs/ca/servers/keycloak.key \
+#     -n keycloak
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -45,22 +49,16 @@ spec:
               value: "admin"
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
               value: "admin"
-            # HTTPS configuration
-            # For development: Use HTTP (8080) or configure TLS certificates for HTTPS (8443)
-            # Option 1: Use HTTP for development (easier, no certificates needed)
+            # HTTPS-only configuration
             - name: KC_HTTP_ENABLED
-              value: "true"
-            - name: KC_HTTP_PORT
-              value: "8080"
-            # Option 2: Use HTTPS with self-signed certificates (uncomment below and comment HTTP above)
-            # - name: KC_HTTP_ENABLED
-            #   value: "false"
-            # - name: KC_HTTPS_PORT
-            #   value: "8443"
-            # - name: KC_HTTPS_CERTIFICATE_FILE
-            #   value: "/etc/keycloak/certs/tls.crt"
-            # - name: KC_HTTPS_CERTIFICATE_KEY_FILE
-            #   value: "/etc/keycloak/certs/tls.key"
+              value: "false"
+            - name: KC_HTTPS_PORT
+              value: "8443"
+            # TLS certificate configuration
+            - name: KC_HTTPS_CERTIFICATE_FILE
+              value: "/etc/keycloak/certs/tls.crt"
+            - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+              value: "/etc/keycloak/certs/tls.key"
             # Hostname configuration (adjust for your environment)
             - name: KC_HOSTNAME
               value: "keycloak.local"
@@ -72,13 +70,13 @@ spec:
             - name: KC_HEALTH_ENABLED
               value: "true"
           ports:
-            - name: http
-              containerPort: 8080
+            - name: https
+              containerPort: 8443
               protocol: TCP
-            # Uncomment for HTTPS (requires TLS certificates)
-            # - name: https
-            #   containerPort: 8443
-            #   protocol: TCP
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/keycloak/certs
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /health/ready
@@ -88,3 +86,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: keycloak-tls
+

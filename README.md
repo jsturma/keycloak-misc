@@ -47,28 +47,65 @@ helm install keycloak ./keycloak-chart -f keycloak-values.yaml --create-namespac
 
 #### Using Plain Kubernetes YAML
 
+**Option 1: HTTP (Development - No certificates needed)**
+
 ```bash
 # Create the keycloak namespace (if it doesn't exist)
 kubectl create namespace keycloak
 
-# Apply the deployment
+# Apply the deployment (uses HTTP on port 8080)
 kubectl apply -f k8s/keycloak_start_dev.yaml
-
-# If updating an existing deployment, delete and recreate:
-kubectl delete -f k8s/keycloak_start_dev.yaml
-kubectl apply -f k8s/keycloak_start_dev.yaml
-
-# Or force replace:
-kubectl replace --force -f k8s/keycloak_start_dev.yaml
 
 # Check deployment status
 kubectl get pods -n keycloak
 kubectl logs -n keycloak -l app=keycloak
+
+# Access Keycloak
+# http://<loadbalancer-ip>:8080
+```
+
+**Option 2: HTTPS (Requires TLS certificates)**
+
+```bash
+# Generate certificates (if not already done)
+cd podman
+./create-certs.sh --all
+
+# Create TLS secret from certificates (using helper script)
+cd ../k8s
+./create-tls-secret.sh
+
+# Or manually create the secret
+kubectl create namespace keycloak
+kubectl create secret tls keycloak-tls \
+  --cert=../podman/certs/ca/servers/keycloak.crt \
+  --key=../podman/certs/ca/servers/keycloak.key \
+  -n keycloak
+
+# Apply HTTPS deployment
+kubectl apply -f k8s/keycloak_start_dev_https.yaml
+
+# Access Keycloak
+# https://<loadbalancer-ip>:8443
+# Note: You may need to accept the self-signed certificate warning
+```
+
+**Updating existing deployment:**
+
+```bash
+# Delete and recreate
+kubectl delete -f k8s/keycloak_start_dev.yaml
+kubectl apply -f k8s/keycloak_start_dev.yaml
+
+# Or force replace
+kubectl replace --force -f k8s/keycloak_start_dev.yaml
 ```
 
 **Note:** 
 - The deployment uses the `keycloak` namespace (not `default`)
-- If you see deprecation warnings or the old Keycloak version (26.1.3) in logs, delete the old deployment and recreate it with the updated YAML
+- Default configuration uses HTTP (port 8080) for easier development
+- For HTTPS, use `keycloak_start_dev_https.yaml` and provide TLS certificates
+- If you see deprecation warnings or the old Keycloak version (26.1.3) in logs, delete the old deployment and recreate it
 - Remember to use `-n keycloak` when running kubectl commands
 
 ### Bare-Metal VM Deployment
