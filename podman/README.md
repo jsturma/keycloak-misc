@@ -327,7 +327,7 @@ cp certs-template/ca-config.json certs/ca/ca-config.json
 
 # Step 4: Generate server certificate signed by the CA
 cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
-  -config certs/ca/ca-config.json -profile server \
+  -config certs/ca/ca-config.json -profile keycloak \
   certs/ca/servers/cert-config.json | cfssljson -bare certs/ca/servers/keycloak
 
 # Rename files to match Keycloak expectations
@@ -387,7 +387,7 @@ cp certs-template/ca-config.json certs/ca/ca-config.json
 
 # Generate new server certificate (e.g., for a different hostname)
 cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
-  -config certs/ca/ca-config.json -profile server \
+  -config certs/ca/ca-config.json -profile keycloak \
   certs/ca/servers/new-server-config.json | cfssljson -bare certs/ca/servers/new-server
 
 # Rename and create keystore as needed
@@ -662,7 +662,7 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
    
    # Step 4: Generate server certificate signed by CA
    cfssl gencert -ca certs/ca/ca.pem -ca-key certs/ca/ca-key.pem \
-     -config certs/ca/ca-config.json -profile server \
+     -config certs/ca/ca-config.json -profile keycloak \
      certs/ca/servers/cert-config.json | cfssljson -bare certs/ca/servers/keycloak
    
    # Rename files

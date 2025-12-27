@@ -1,32 +1,12 @@
 {
-  "CN": "keycloak.jslab.lan",
+  "CN": "keycloak.local",
   "hosts": [
-    "localhost",
-    "127.0.0.1",
-    "keycloak",
     "keycloak.local",
-    "keycloak.jslab.lan"
+    "127.0.0.1"
   ],
   "key": {
     "algo": "rsa",
     "size": 2048
-  },
-  "names": [
-    {
-      "C": "US",
-      "ST": "State",
-      "L": "City",
-      "O": "Keycloak",
-      "OU": "IT Department",
-      "CN": "keycloak.jslab.lan"
-    }
-  ],
-  "keyUsage": {
-    "digitalSignature": true,
-    "keyEncipherment": true
-  },
-  "extendedKeyUsage": {
-    "serverAuth": true
   }
 }
 

@@ -129,7 +129,7 @@ create_server_cert() {
     cfssl gencert -ca "${CA_DIR}/${CA_NAME}.pem" \
         -ca-key "${CA_DIR}/${CA_NAME}-key.pem" \
         -config "${CA_DIR}/ca-config.json" \
-        -profile server \
+        -profile keycloak \
         "${SERVERS_DIR}/${server_name}-config.json" | cfssljson -bare "${SERVERS_DIR}/${server_name}"
     
     # Rename files

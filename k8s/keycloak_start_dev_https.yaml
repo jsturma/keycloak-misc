@@ -61,7 +61,7 @@ spec:
               value: "/etc/keycloak/certs/tls.key"
             # Hostname configuration (adjust for your environment)
             - name: KC_HOSTNAME
-              value: "keycloak.jslab.lan"
+              value: "keycloak.local"
             - name: KC_HOSTNAME_STRICT
               value: "false"
             # Other configuration

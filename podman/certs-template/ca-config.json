@@ -4,9 +4,14 @@
       "expiry": "8760h"
     },
     "profiles": {
-      "server": {
+      "keycloak": {
         "expiry": "8760h",
-        "usages": ["signing", "key encipherment", "server auth"]
+        "usages": [
+          "signing",
+          "key encipherment",
+          "digital signature",
+          "server auth"
+        ]
       }
     }
   }
