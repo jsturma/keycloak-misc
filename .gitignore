@@ -46,6 +46,11 @@ secrets/
 .env
 .env.local
 
+# Certificate directories (generated certificates should not be in git)
+**/certs/
+podman/certs/
+k8s/certs/
+
 # Keycloak specific
 keycloak-data/
 keycloak-export/
