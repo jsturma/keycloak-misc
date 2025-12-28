@@ -560,9 +560,13 @@ docker-compose -f docker-compose.postgres.yml down -v
 **Manual Setup:**
 
 ```bash
+# Create a Podman network (if it doesn't exist)
+podman network create keycloak-network
+
 # Start PostgreSQL
 podman run -d \
-  --name postgres \
+  --name kc-postgres \
+  --network keycloak-network \
   -e POSTGRES_DB=keycloak \
   -e POSTGRES_USER=keycloak \
   -e POSTGRES_PASSWORD=keycloak \
@@ -572,13 +576,13 @@ podman run -d \
 # Start Keycloak with PostgreSQL
 podman run -d \
   --name keycloak \
-  --link postgres:postgres \
+  --network keycloak-network \
   -p 8443:8443 \
   -v $(pwd)/certs/ca/servers:/etc/keycloak/certs:ro \
   -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
   -e KC_DB=postgres \
-  -e KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak \
+  -e KC_DB_URL=jdbc:postgresql://kc-postgres:5432/keycloak \
   -e KC_DB_USERNAME=keycloak \
   -e KC_DB_PASSWORD=keycloak \
   -e KC_HTTP_ENABLED=false \
@@ -588,9 +592,11 @@ podman run -d \
   keycloak:latest
 ```
 
+**Note:** Podman doesn't support the deprecated `--link` flag. Use `--network` instead to connect containers on the same network.
+
 **PostgreSQL Environment Variables:**
 - `KC_DB=postgres` - Database type
-- `KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak` - Database connection URL
+- `KC_DB_URL=jdbc:postgresql://kc-postgres:5432/keycloak` - Database connection URL
 - `KC_DB_USERNAME=keycloak` - Database username
 - `KC_DB_PASSWORD=keycloak` - Database password
 
@@ -623,7 +629,7 @@ The container runs in development mode (`start-dev`), which:
 - Or configure manually with environment variables:
   ```bash
   -e KC_DB=postgres
-  -e KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+  -e KC_DB_URL=jdbc:postgresql://kc-postgres:5432/keycloak
   -e KC_DB_USERNAME=keycloak
   -e KC_DB_PASSWORD=keycloak
   ```
