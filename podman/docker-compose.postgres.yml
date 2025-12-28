@@ -21,7 +21,10 @@ services:
       - keycloak-network
 
   keycloak:
-    image: keycloak:latest
+    # Use official image or your custom built image
+    # For custom image, build first: ./build.sh
+    image: quay.io/keycloak/keycloak:26.4.7
+    # image: keycloak:latest  # Uncomment to use custom built image
     container_name: keycloak
     depends_on:
       postgres:

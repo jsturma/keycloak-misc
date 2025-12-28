@@ -470,7 +470,7 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
-  keycloak:latest
+  quay.io/keycloak/keycloak:26.4.7
 ```
 
 **Option 3: Using Java keystore (includes full chain)**
@@ -486,7 +486,7 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_KEYSTORE_FILE=/opt/keycloak/conf/certs/keycloak.p12 \
   -e KC_HTTPS_KEYSTORE_PASSWORD=changeit \
-  keycloak:latest
+  quay.io/keycloak/keycloak:26.4.7
 ```
 
 ### Production Certificates
@@ -501,7 +501,22 @@ For production environments:
 
 ### Basic Run
 
+**Using official Keycloak image (recommended):**
+
 ```bash
+podman run -d \
+  --name keycloak \
+  -p 8443:8443 \
+  quay.io/keycloak/keycloak:26.4.7
+```
+
+**Or using your custom built image:**
+
+```bash
+# Build the image first
+./build.sh
+
+# Then run it
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
@@ -511,6 +526,17 @@ podman run -d \
 ### With Environment Variables
 
 ```bash
+# Using official image
+podman run -d \
+  --name keycloak \
+  -p 8443:8443 \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
+  quay.io/keycloak/keycloak:26.4.7
+
+# Or using your custom built image (after running ./build.sh)
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
@@ -534,7 +560,7 @@ podman run -d \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
   -e KC_HTTP_ENABLED=false \
   -e KC_HTTPS_PORT=8443 \
-  keycloak:latest
+  quay.io/keycloak/keycloak:26.4.7
 ```
 
 ### With PostgreSQL Database
@@ -574,6 +600,7 @@ podman run -d \
   postgres:16-alpine
 
 # Start Keycloak with PostgreSQL
+# Using official image (recommended)
 podman run -d \
   --name keycloak \
   --network keycloak-network \
@@ -589,7 +616,9 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/etc/keycloak/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/etc/keycloak/certs/keycloak.key \
-  keycloak:latest
+  quay.io/keycloak/keycloak:26.4.7
+
+# Or using your custom built image (replace quay.io/keycloak/keycloak:26.4.7 with keycloak:latest)
 ```
 
 **Note:** Podman doesn't support the deprecated `--link` flag. Use `--network` instead to connect containers on the same network.
