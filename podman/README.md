@@ -826,6 +826,30 @@ If you encounter the error `ERR_SSL_KEY_USAGE_INCOMPATIBLE` when accessing Keycl
 - `KEYCLOAK_ADMIN` - Use `KC_BOOTSTRAP_ADMIN_USERNAME` instead
 - `KEYCLOAK_ADMIN_PASSWORD` - Use `KC_BOOTSTRAP_ADMIN_PASSWORD` instead
 
+**Alternative: Using CLI Commands**
+
+You can also create admin users using the Keycloak CLI:
+
+```bash
+# Execute inside the running container
+podman exec -it keycloak /opt/keycloak/bin/kc.sh bootstrap-admin user \
+  --username admin \
+  --password admin
+
+# Or using the official image directly
+podman run --rm \
+  -v keycloak-data:/opt/keycloak/data \
+  quay.io/keycloak/keycloak:26.4.7 \
+  bootstrap-admin user \
+  --username admin \
+  --password admin
+```
+
+**Note:** The CLI method is useful when:
+- You need to add admin users after the server has started
+- Environment variables are not available
+- You want to add multiple admin users or service accounts
+
 ### HTTPS Configuration
 
 - `KC_HTTP_ENABLED=false` - Disable HTTP listener (port 8080)
