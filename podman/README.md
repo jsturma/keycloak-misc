@@ -560,8 +560,8 @@ docker-compose -f docker-compose.postgres.yml down -v
 **Manual Setup:**
 
 ```bash
-# Create a Podman network (if it doesn't exist)
-podman network create keycloak-network
+# Create a Podman network (required - creates if it doesn't exist)
+podman network create keycloak-network 2>/dev/null || true
 
 # Start PostgreSQL
 podman run -d \
