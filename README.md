@@ -9,7 +9,10 @@ keycloak-misc/
 ├── k8s/                    # Kubernetes/Helm deployments
 │   ├── keycloak-chart/     # Helm chart for Keycloak
 │   ├── keycloak-values.yaml
-│   └── keycloak_start_dev.yaml
+│   ├── keycloak_start_dev.yaml      # H2 database (default)
+│   ├── keycloak_start_dev_https.yaml # HTTPS with H2
+│   ├── keycloak_postgres.yaml       # PostgreSQL database
+│   └── create-tls-secret.sh         # TLS secret creation script
 ├── bm-vm/                  # Bare-metal VM deployments
 │   ├── setup-keycloak-dev.sh    # Automated setup script
 │   ├── deploy-service.sh         # Service deployment script
@@ -21,6 +24,7 @@ keycloak-misc/
 │   ├── build.sh                # Automated multi-arch build script
 │   ├── analyze-image.sh        # Image analysis with dive
 │   ├── create-certs.sh         # Certificate creation script
+│   ├── docker-compose.postgres.yml  # Docker Compose with PostgreSQL
 │   ├── certs-template/         # Certificate configuration templates
 │   └── README.md               # Podman setup guide
 ├── LICENSE
@@ -47,14 +51,31 @@ helm install keycloak ./keycloak-chart -f keycloak-values.yaml --create-namespac
 
 #### Using Plain Kubernetes YAML
 
-**Option 1: HTTP (Development - No certificates needed)**
+**Option 1: HTTP with H2 Database (Development - No certificates needed)**
 
 ```bash
 # Create the keycloak namespace (if it doesn't exist)
 kubectl create namespace keycloak
 
-# Apply the deployment (uses HTTP on port 8080)
+# Apply the deployment (uses HTTP on port 8080, H2 in-memory database)
 kubectl apply -f k8s/keycloak_start_dev.yaml
+
+# Check deployment status
+kubectl get pods -n keycloak
+kubectl logs -n keycloak -l app=keycloak
+
+# Access Keycloak
+# http://<loadbalancer-ip>:8080
+```
+
+**Option 1b: HTTP with PostgreSQL (Persistent database)**
+
+```bash
+# Create the keycloak namespace (if it doesn't exist)
+kubectl create namespace keycloak
+
+# Apply PostgreSQL and Keycloak deployment
+kubectl apply -f k8s/keycloak_postgres.yaml
 
 # Check deployment status
 kubectl get pods -n keycloak
@@ -172,6 +193,8 @@ podman run -d --name keycloak -p 8443:8443 \
 - Helm chart with configurable values
 - Plain Kubernetes manifests for quick deployment
 - Development mode configuration
+- Database options: H2 (default) or PostgreSQL
+- PostgreSQL deployment with persistent storage
 - HTTPS-only configuration (port 8443)
 - Health checks and readiness probes
 - Updated to use new environment variables (KC_BOOTSTRAP_ADMIN_USERNAME)
@@ -193,6 +216,8 @@ podman run -d --name keycloak -p 8443:8443 \
 - Image optimization with dive integration
 - Automated certificate creation (CFSSL/OpenSSL)
 - Development and production modes
+- Database options: H2 (default) or PostgreSQL
+- Docker Compose support for PostgreSQL setup
 - Custom themes and providers support
 - HTTPS-only configuration (port 8443)
 - JDK 21 support (required by latest Keycloak versions)

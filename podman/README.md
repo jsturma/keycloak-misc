@@ -523,7 +523,7 @@ podman run -d \
 
 **Note:** The deprecated `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` environment variables still work but will show warnings. Use `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` instead.
 
-### With Volume for Data Persistence
+### With Volume for Data Persistence (H2)
 
 ```bash
 podman run -d \
@@ -537,15 +537,98 @@ podman run -d \
   keycloak:latest
 ```
 
+### With PostgreSQL Database
+
+**Using Docker Compose (Recommended):**
+
+```bash
+# Start PostgreSQL and Keycloak together
+docker-compose -f docker-compose.postgres.yml up -d
+
+# View logs
+docker-compose -f docker-compose.postgres.yml logs -f keycloak
+
+# Stop services
+docker-compose -f docker-compose.postgres.yml down
+
+# Stop and remove volumes (deletes data)
+docker-compose -f docker-compose.postgres.yml down -v
+```
+
+**Note:** For Podman, use `podman-compose` instead of `docker-compose` if available, or use the manual setup below.
+
+**Manual Setup:**
+
+```bash
+# Start PostgreSQL
+podman run -d \
+  --name postgres \
+  -e POSTGRES_DB=keycloak \
+  -e POSTGRES_USER=keycloak \
+  -e POSTGRES_PASSWORD=keycloak \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:16-alpine
+
+# Start Keycloak with PostgreSQL
+podman run -d \
+  --name keycloak \
+  --link postgres:postgres \
+  -p 8443:8443 \
+  -v $(pwd)/certs/ca/servers:/etc/keycloak/certs:ro \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
+  -e KC_DB=postgres \
+  -e KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak \
+  -e KC_DB_USERNAME=keycloak \
+  -e KC_DB_PASSWORD=keycloak \
+  -e KC_HTTP_ENABLED=false \
+  -e KC_HTTPS_PORT=8443 \
+  -e KC_HTTPS_CERTIFICATE_FILE=/etc/keycloak/certs/keycloak.crt \
+  -e KC_HTTPS_CERTIFICATE_KEY_FILE=/etc/keycloak/certs/keycloak.key \
+  keycloak:latest
+```
+
+**PostgreSQL Environment Variables:**
+- `KC_DB=postgres` - Database type
+- `KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak` - Database connection URL
+- `KC_DB_USERNAME=keycloak` - Database username
+- `KC_DB_PASSWORD=keycloak` - Database password
+
+**Benefits of PostgreSQL:**
+- Data persists across container restarts
+- Suitable for production use
+- Better performance for larger deployments
+- Supports clustering and high availability
+
 ## Configuration
 
 ### Development Mode
 
 The container runs in development mode (`start-dev`), which:
-- Uses an in-memory database (H2)
+- Uses an in-memory database (H2) by default
+- Can be configured to use PostgreSQL (see below)
 - Enables the admin console
 - Auto-creates an admin user if `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` are set
 - Not suitable for production use
+
+### Database Configuration
+
+**Default (H2 - In-memory):**
+- No configuration needed
+- Data is lost when container stops
+- Suitable for development and testing only
+
+**PostgreSQL (Persistent):**
+- Use `docker-compose.postgres.yml` for easy setup
+- Or configure manually with environment variables:
+  ```bash
+  -e KC_DB=postgres
+  -e KC_DB_URL=jdbc:postgresql://postgres:5432/keycloak
+  -e KC_DB_USERNAME=keycloak
+  -e KC_DB_PASSWORD=keycloak
+  ```
+- Data persists across container restarts
+- Suitable for production use
 
 **HTTPS-Only Configuration:**
 - Set `KC_HTTP_ENABLED=false` to disable HTTP (port 8080)
