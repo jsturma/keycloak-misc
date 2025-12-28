@@ -454,8 +454,11 @@ podman run -d \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
   -e KC_HTTPS_CERTIFICATE_CHAIN_FILE=/opt/keycloak/conf/certs/keycloak-chain.crt \
-  keycloak:latest
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 ```
+
+**Note:** Always include `start-dev` (for development) or `start` (for production) as the command. Without it, the container will exit after showing the help message.
 
 **Option 2: Using certificate files without chain**
 
@@ -470,7 +473,8 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/opt/keycloak/conf/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/opt/keycloak/conf/certs/keycloak.key \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 ```
 
 **Option 3: Using Java keystore (includes full chain)**
@@ -486,7 +490,8 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_KEYSTORE_FILE=/opt/keycloak/conf/certs/keycloak.p12 \
   -e KC_HTTPS_KEYSTORE_PASSWORD=changeit \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 ```
 
 ### Production Certificates
@@ -507,7 +512,8 @@ For production environments:
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 ```
 
 **Or using your custom built image:**
@@ -520,7 +526,8 @@ podman run -d \
 podman run -d \
   --name keycloak \
   -p 8443:8443 \
-  keycloak:latest
+  keycloak:latest \
+  start-dev
 ```
 
 ### With Environment Variables
@@ -534,7 +541,8 @@ podman run -d \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
   -e KC_HTTP_ENABLED=false \
   -e KC_HTTPS_PORT=8443 \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 
 # Or using your custom built image (after running ./build.sh)
 podman run -d \
@@ -544,7 +552,8 @@ podman run -d \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
   -e KC_HTTP_ENABLED=false \
   -e KC_HTTPS_PORT=8443 \
-  keycloak:latest
+  keycloak:latest \
+  start-dev
 ```
 
 **Note:** The deprecated `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD` environment variables still work but will show warnings. Use `KC_BOOTSTRAP_ADMIN_USERNAME` and `KC_BOOTSTRAP_ADMIN_PASSWORD` instead.
@@ -560,7 +569,8 @@ podman run -d \
   -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin \
   -e KC_HTTP_ENABLED=false \
   -e KC_HTTPS_PORT=8443 \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 ```
 
 ### With PostgreSQL Database
@@ -616,7 +626,8 @@ podman run -d \
   -e KC_HTTPS_PORT=8443 \
   -e KC_HTTPS_CERTIFICATE_FILE=/etc/keycloak/certs/keycloak.crt \
   -e KC_HTTPS_CERTIFICATE_KEY_FILE=/etc/keycloak/certs/keycloak.key \
-  quay.io/keycloak/keycloak:26.4.7
+  quay.io/keycloak/keycloak:26.4.7 \
+  start-dev
 
 # Or using your custom built image (replace quay.io/keycloak/keycloak:26.4.7 with keycloak:latest)
 ```
