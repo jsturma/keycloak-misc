@@ -646,6 +646,88 @@ podman run -d \
 - Better performance for larger deployments
 - Supports clustering and high availability
 
+### Querying the Keycloak Database
+
+To query the Keycloak database from inside the PostgreSQL container:
+
+**Connect to PostgreSQL:**
+
+```bash
+# Connect to PostgreSQL container
+podman exec -it kc-postgres psql -U keycloak -d keycloak
+
+# Or connect directly with psql command
+podman exec -it kc-postgres psql -U keycloak -d keycloak -c "SELECT * FROM realm LIMIT 5;"
+```
+
+**Common Database Queries:**
+
+```sql
+-- List all realms
+SELECT id, name, enabled FROM realm;
+
+-- Count users in a realm (replace 'master' with your realm name)
+SELECT COUNT(*) FROM user_entity WHERE realm_id = 'master';
+
+-- List all users in a realm
+SELECT id, username, email, enabled, created_timestamp 
+FROM user_entity 
+WHERE realm_id = 'master' 
+ORDER BY created_timestamp DESC;
+
+-- Find admin users
+SELECT u.id, u.username, u.email, r.name as realm_name
+FROM user_entity u
+JOIN realm r ON u.realm_id = r.id
+WHERE u.username = 'admin';
+
+-- List all clients in a realm
+SELECT id, client_id, name, enabled 
+FROM client 
+WHERE realm_id = 'master';
+
+-- Check database size
+SELECT pg_size_pretty(pg_database_size('keycloak'));
+
+-- List all tables
+\dt
+
+-- Describe a table structure
+\d user_entity
+
+-- Exit psql
+\q
+```
+
+**Useful PostgreSQL Commands:**
+
+```bash
+# Connect to database
+podman exec -it kc-postgres psql -U keycloak -d keycloak
+
+# Run a single query without entering psql
+podman exec -it kc-postgres psql -U keycloak -d keycloak -c "SELECT version();"
+
+# Backup the database
+podman exec kc-postgres pg_dump -U keycloak keycloak > keycloak_backup.sql
+
+# Restore the database
+podman exec -i kc-postgres psql -U keycloak -d keycloak < keycloak_backup.sql
+
+# List all databases
+podman exec -it kc-postgres psql -U keycloak -l
+
+# Show database connection info
+podman exec -it kc-postgres psql -U keycloak -d keycloak -c "\conninfo"
+```
+
+**Important Notes:**
+- Database credentials: `keycloak` user, `keycloak` password, `keycloak` database
+- Be careful when modifying data directly in the database
+- Always backup before making changes
+- Keycloak uses JPA/Hibernate, so direct database modifications may cause issues
+- For production, use Keycloak's Admin API or Admin Console instead of direct database access
+
 ## Configuration
 
 ### Development Mode
