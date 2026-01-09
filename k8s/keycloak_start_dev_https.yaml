@@ -1,34 +1,27 @@
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+---
+apiVersion: v1
 kind: Service
 metadata:
   name: keycloak
   namespace: keycloak
-  labels:
-    app: keycloak
 spec:
+  type: LoadBalancer
+  selector:
+    app: keycloak
   ports:
     - name: https
       port: 8443
       targetPort: 8443
-  selector:
-    app: keycloak
-  type: LoadBalancer
----
-# Note: Create the TLS secret first using:
-#   ./create-tls-secret.sh
-# Or manually:
-#   kubectl create secret tls keycloak-tls \
-#     --cert=../podman/certs/ca/servers/keycloak.crt \
-#     --key=../podman/certs/ca/servers/keycloak.key \
-#     -n keycloak
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: keycloak
   namespace: keycloak
-  labels:
-    app: keycloak
 spec:
   replicas: 1
   selector:
@@ -42,52 +35,52 @@ spec:
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:26.4.7
-          args: ["start-dev"]
+          args:
+            - start-dev
           env:
-            # New environment variables (recommended, no deprecation warnings)
+            # Admin bootstrap
             - name: KC_BOOTSTRAP_ADMIN_USERNAME
-              value: "admin"
+              value: admin
             - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-              value: "admin"
-            # HTTPS-only configuration
+              value: admin
+
+            # HTTPS only
             - name: KC_HTTP_ENABLED
               value: "false"
             - name: KC_HTTPS_PORT
               value: "8443"
-            # TLS certificate configuration
+
+            # TLS
             - name: KC_HTTPS_CERTIFICATE_FILE
-              value: "/etc/keycloak/certs/tls.crt"
+              value: /etc/keycloak/certs/tls.crt
             - name: KC_HTTPS_CERTIFICATE_KEY_FILE
-              value: "/etc/keycloak/certs/tls.key"
-            # Hostname configuration (adjust for your environment)
+              value: /etc/keycloak/certs/tls.key
+
+            # Hostname
             - name: KC_HOSTNAME
-              value: "keycloak.local"
+              value: keycloak.local
             - name: KC_HOSTNAME_STRICT
               value: "false"
-            # Other configuration
+
+            # Proxy mode
             - name: KC_PROXY
-              value: "edge"
+              value: edge
+
+            # Health (utile pour debug)
             - name: KC_HEALTH_ENABLED
               value: "true"
+
           ports:
             - name: https
               containerPort: 8443
               protocol: TCP
+
           volumeMounts:
             - name: tls-certs
               mountPath: /etc/keycloak/certs
               readOnly: true
-          readinessProbe:
-            httpGet:
-              path: /health/ready
-              port: 9000
-              scheme: HTTP
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+
       volumes:
         - name: tls-certs
           secret:
             secretName: keycloak-tls
-
