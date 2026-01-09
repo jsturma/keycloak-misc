@@ -16,6 +16,13 @@ spec:
     - name: https
       port: 8443
       targetPort: 8443
+# Note: Create the TLS secret first using:
+#   ./create-tls-secret.sh
+# Or manually:
+#   kubectl create secret tls keycloak-tls \
+#     --cert=../podman/certs/ca/servers/keycloak.crt \
+#     --key=../podman/certs/ca/servers/keycloak.key \
+#     -n keycloak
 ---
 apiVersion: apps/v1
 kind: Deployment
